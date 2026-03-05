@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MADO-64 | Laboratorio de Circuitos Eléctricos</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #050805;
+    --bg2:      #0a0f0a;
+    --bg3:      #0d140d;
+    --grid:     #1a2e1a;
+    --green:    #00ff41;
+    --green2:   #00c832;
+    --cyan:     #00e5ff;
+    --yellow:   #ffdd00;
+    --pink:     #ff4081;
+    --amber:    #ffab40;
+    --purple:   #b39ddb;
+    --teal:     #80cbc4;
+    --white:    #d8f0d8;
+    --dim:      #3a5a3a;
+    --font:     'Share Tech Mono', monospace;
+    --fontd:    'Orbitron', monospace;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--white);
+    font-family: var(--font);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* scanline overlay */
+  body::before {
+    content:'';
+    position:fixed; inset:0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,255,65,0.015) 2px,
+      rgba(0,255,65,0.015) 4px
+    );
+    pointer-events:none;
+    z-index:9999;
+  }
+
+  /* ── HEADER ── */
+  header {
+    padding: 18px 28px 14px;
+    border-bottom: 1px solid var(--grid);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(180deg, #0a150a 0%, var(--bg) 100%);
+  }
+  .header-left h1 {
+    font-family: var(--fontd);
+    font-size: 1.1rem;
+    color: var(--green);
+    letter-spacing: 0.12em;
+    text-shadow: 0 0 18px rgba(0,255,65,0.5);
+  }
+  .header-left p {
+    font-size: 0.68rem;
+    color: var(--dim);
+    margin-top: 3px;
+    letter-spacing: 0.08em;
+  }
+  .header-right {
+    font-size: 0.65rem;
+    color: var(--dim);
+    text-align: right;
+    line-height: 1.7;
+  }
+  .status-dot {
+    display:inline-block; width:7px; height:7px;
+    background:var(--green); border-radius:50%;
+    box-shadow: 0 0 8px var(--green);
+    animation: blink 1.4s infinite;
+    margin-right: 5px;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    padding: 12px 28px 0;
+    background: var(--bg);
+    border-bottom: 1px solid var(--grid);
+  }
+  .tab-btn {
+    font-family: var(--fontd);
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    padding: 8px 20px;
+    background: var(--bg2);
+    color: var(--dim);
+    border: 1px solid var(--grid);
+    border-bottom: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    top: 1px;
+  }
+  .tab-btn:hover { color: var(--white); border-color: var(--green2); }
+  .tab-btn.active {
+    color: var(--green);
+    border-color: var(--green);
+    background: var(--bg3);
+    text-shadow: 0 0 10px rgba(0,255,65,0.4);
+  }
+  .tab-btn.exp1.active { color: var(--green);  border-color: var(--green); }
+  .tab-btn.exp2.active { color: var(--cyan);   border-color: var(--cyan);  text-shadow: 0 0 10px rgba(0,229,255,0.4); }
+  .tab-btn.exp3.active { color: var(--amber);  border-color: var(--amber); text-shadow: 0 0 10px rgba(255,171,64,0.4); }
+
+  /* ── PANELS ── */
+  .panel { display:none; padding: 20px 28px 28px; }
+  .panel.active { display:block; }
+
+  /* ── OSCILO WRAPPER ── */
+  .oscilo-wrap {
+    display: grid;
+    grid-template-columns: 1fr 260px;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  /* ── CANVAS osciloscopio ── */
+  .scope-box {
+    background: #020602;
+    border: 1px solid var(--grid);
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+  }
+  .scope-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 12px;
+    background: var(--bg3);
+    border-bottom: 1px solid var(--grid);
+    font-size: 0.65rem;
+  }
+  .scope-label { font-family: var(--fontd); font-size: 0.6rem; letter-spacing: 0.1em; }
+  canvas {
+    display: block;
+    width: 100%;
+    image-rendering: pixelated;
+  }
+  .scope-bottombar {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 12px;
+    background: var(--bg3);
+    border-top: 1px solid var(--grid);
+    font-size: 0.6rem;
+    color: var(--dim);
+  }
+
+  /* ── SIDEBAR INFO ── */
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .info-box {
+    background: var(--bg3);
+    border: 1px solid var(--grid);
+    border-radius: 4px;
+    padding: 12px 14px;
+    font-size: 0.68rem;
+    line-height: 2;
+  }
+  .info-box h3 {
+    font-family: var(--fontd);
+    font-size: 0.58rem;
+    letter-spacing: 0.15em;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--grid);
+  }
+  .info-row { display:flex; justify-content:space-between; }
+  .info-val { font-weight: bold; }
+
+  /* ── FASOR CANVAS ── */
+  .fasor-box {
+    background: var(--bg3);
+    border: 1px solid var(--grid);
+    border-radius: 4px;
+    padding: 8px;
+    text-align: center;
+  }
+  .fasor-box h3 {
+    font-family: var(--fontd);
+    font-size: 0.56rem;
+    letter-spacing: 0.12em;
+    margin-bottom: 6px;
+    color: var(--cyan);
+  }
+
+  /* ── BODE ── */
+  .bode-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 16px;
+  }
+  .bode-box {
+    background: #020602;
+    border: 1px solid var(--grid);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .bode-box .scope-topbar { font-size: 0.62rem; }
+
+  /* ── SLIDER (EXP3) ── */
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 14px;
+    background: var(--bg3);
+    border: 1px solid var(--grid);
+    border-radius: 4px;
+    padding: 10px 16px;
+  }
+  .slider-row label {
+    font-family: var(--fontd);
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+    color: var(--amber);
+    white-space: nowrap;
+  }
+  input[type=range] {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 4px;
+    background: var(--grid);
+    border-radius: 2px;
+    outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--amber);
+    box-shadow: 0 0 8px var(--amber);
+    cursor: pointer;
+  }
+  .slider-val {
+    font-family: var(--fontd);
+    font-size: 0.72rem;
+    color: var(--amber);
+    min-width: 80px;
+    text-align: right;
+  }
+
+  /* ── LEGEND DOTS ── */
+  .leg { display:flex; align-items:center; gap:6px; font-size:0.65rem; }
+  .leg-dot { width:10px; height:3px; border-radius:2px; }
+  .legends { display:flex; gap:18px; padding: 6px 12px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>⚡ LABORATORIO DE ANÁLISIS DE CIRCUITOS ELÉCTRICOS</h1>
+    <p>MADO-64 · Versión 01 · Facultad de Ingeniería · Simulación en tiempo real</p>
+  </div>
+  <div class="header-right">
+    <span class="status-dot"></span>SIMULACIÓN ACTIVA<br>
+    TRIG: AUTO · ACPL: DC · 1×<br>
+    Estado sinusoidal permanente
+  </div>
+</header>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab-btn exp1 active" onclick="switchTab('exp1',this)">EXP 1 — RL PASA-BAJAS</button>
+  <button class="tab-btn exp2"        onclick="switchTab('exp2',this)">EXP 2 — RC PASA-ALTAS</button>
+  <button class="tab-btn exp3"        onclick="switchTab('exp3',this)">EXP 3 — RLC PASA-BANDA</button>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     EXPERIMENTO 1 — RL
+══════════════════════════════════════════════════════ -->
+<div id="exp1" class="panel active">
+  <div class="oscilo-wrap">
+    <div class="scope-box">
+      <div class="scope-topbar">
+        <span class="scope-label" style="color:var(--green)">CH1/CH2 — CIRCUITO RL PASA-BAJAS</span>
+        <div class="legends">
+          <div class="leg"><div class="leg-dot" style="background:var(--green)"></div>vi(t) entrada</div>
+          <div class="leg"><div class="leg-dot" style="background:var(--yellow)"></div>vo(t) salida</div>
+        </div>
+      </div>
+      <canvas id="c1" height="280"></canvas>
+      <div class="scope-bottombar">
+        <span id="e1_time">TIME/DIV: —</span>
+        <span>V/DIV: 1V</span>
+        <span id="e1_phi" style="color:var(--yellow)">φ: —</span>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <div class="info-box">
+        <h3 style="color:var(--green)">PARÁMETROS</h3>
+        <div class="info-row"><span>R</span><span class="info-val">470 Ω</span></div>
+        <div class="info-row"><span>rg</span><span class="info-val">50 Ω</span></div>
+        <div class="info-row"><span>rL</span><span class="info-val">50 Ω</span></div>
+        <div class="info-row"><span>L</span><span class="info-val">50 mH</span></div>
+        <div class="info-row"><span>f</span><span class="info-val">1000 Hz</span></div>
+        <div class="info-row"><span>Vm</span><span class="info-val">5 V</span></div>
+      </div>
+      <div class="info-box">
+        <h3 style="color:var(--yellow)">RESULTADOS</h3>
+        <div class="info-row"><span>|H(jω)|</span><span class="info-val" id="e1_mag" style="color:var(--yellow)">—</span></div>
+        <div class="info-row"><span>Vo amp</span><span class="info-val" id="e1_vo" style="color:var(--yellow)">—</span></div>
+        <div class="info-row"><span>φ medido</span><span class="info-val" id="e1_phi2" style="color:var(--yellow)">—</span></div>
+        <div class="info-row"><span>φ teórico</span><span class="info-val" id="e1_phit" style="color:var(--cyan)">—</span></div>
+        <div class="info-row" style="margin-top:8px"><span style="color:#ff6b35">⚠ Salida</span><span class="info-val" style="color:#ff6b35">ATRASADA ◀</span></div>
+      </div>
+      <div class="fasor-box">
+        <h3>DIAGRAMA FASORIAL</h3>
+        <canvas id="f1" width="220" height="220"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     EXPERIMENTO 2 — RC
+══════════════════════════════════════════════════════ -->
+<div id="exp2" class="panel">
+  <div class="oscilo-wrap">
+    <div class="scope-box">
+      <div class="scope-topbar">
+        <span class="scope-label" style="color:var(--cyan)">CH1/CH2 — CIRCUITO RC PASA-ALTAS</span>
+        <div class="legends">
+          <div class="leg"><div class="leg-dot" style="background:var(--cyan)"></div>vi(t) entrada</div>
+          <div class="leg"><div class="leg-dot" style="background:var(--pink)"></div>vo(t) salida</div>
+        </div>
+      </div>
+      <canvas id="c2" height="280"></canvas>
+      <div class="scope-bottombar">
+        <span id="e2_time">TIME/DIV: —</span>
+        <span>V/DIV: 1V</span>
+        <span id="e2_phi" style="color:var(--pink)">φ: —</span>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <div class="info-box">
+        <h3 style="color:var(--cyan)">PARÁMETROS</h3>
+        <div class="info-row"><span>R</span><span class="info-val">470 Ω</span></div>
+        <div class="info-row"><span>rg</span><span class="info-val">50 Ω</span></div>
+        <div class="info-row"><span>C</span><span class="info-val">0.1 µF</span></div>
+        <div class="info-row"><span>f</span><span class="info-val">1000 Hz</span></div>
+        <div class="info-row"><span>Vm</span><span class="info-val">5 V</span></div>
+        <div class="info-row"><span>Xc</span><span class="info-val" id="e2_xc">—</span></div>
+      </div>
+      <div class="info-box">
+        <h3 style="color:var(--pink)">RESULTADOS</h3>
+        <div class="info-row"><span>|H(jω)|</span><span class="info-val" id="e2_mag" style="color:var(--pink)">—</span></div>
+        <div class="info-row"><span>Vo amp</span><span class="info-val" id="e2_vo" style="color:var(--pink)">—</span></div>
+        <div class="info-row"><span>φ medido</span><span class="info-val" id="e2_phi2" style="color:var(--pink)">—</span></div>
+        <div class="info-row"><span>φ teórico</span><span class="info-val" id="e2_phit" style="color:var(--cyan)">—</span></div>
+        <div class="info-row" style="margin-top:8px"><span style="color:#69f0ae">✓ Salida</span><span class="info-val" style="color:#69f0ae">ADELANTADA ▶</span></div>
+      </div>
+      <div class="fasor-box">
+        <h3 style="color:var(--cyan)">DIAGRAMA FASORIAL</h3>
+        <canvas id="f2" width="220" height="220"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     EXPERIMENTO 3 — RLC
+══════════════════════════════════════════════════════ -->
+<div id="exp3" class="panel">
+  <div class="oscilo-wrap">
+    <div class="scope-box">
+      <div class="scope-topbar">
+        <span class="scope-label" id="e3_title" style="color:var(--amber)">CH1/CH2 — CIRCUITO RLC PASA-BANDA</span>
+        <div class="legends">
+          <div class="leg"><div class="leg-dot" style="background:var(--cyan)"></div>vi(t) entrada</div>
+          <div class="leg"><div class="leg-dot" id="e3_leg" style="background:var(--amber)"></div>vo(t) salida</div>
+        </div>
+      </div>
+      <canvas id="c3" height="280"></canvas>
+      <div class="scope-bottombar">
+        <span id="e3_fdisp">f: —</span>
+        <span id="e3_ratio">f/fo: —</span>
+        <span id="e3_phi" style="color:var(--amber)">φ: —</span>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <div class="info-box">
+        <h3 style="color:var(--amber)">PARÁMETROS</h3>
+        <div class="info-row"><span>R</span><span class="info-val">1000 Ω</span></div>
+        <div class="info-row"><span>rg + rL</span><span class="info-val">100 Ω</span></div>
+        <div class="info-row"><span>L</span><span class="info-val">60 mH</span></div>
+        <div class="info-row"><span>C</span><span class="info-val">10 nF</span></div>
+        <div class="info-row"><span>fo</span><span class="info-val" id="e3_fo" style="color:var(--amber)">—</span></div>
+        <div class="info-row"><span>Q</span><span class="info-val" id="e3_Q" style="color:var(--green)">—</span></div>
+      </div>
+      <div class="info-box">
+        <h3 id="e3_estado_h" style="color:var(--amber)">ESTADO: —</h3>
+        <div class="info-row"><span>f actual</span><span class="info-val" id="e3_fv" style="color:var(--amber)">—</span></div>
+        <div class="info-row"><span>|H(jω)|</span><span class="info-val" id="e3_mag" style="color:var(--amber)">—</span></div>
+        <div class="info-row"><span>Vo amp</span><span class="info-val" id="e3_vo" style="color:var(--amber)">—</span></div>
+        <div class="info-row"><span>φ</span><span class="info-val" id="e3_phi2" style="color:var(--amber)">—</span></div>
+      </div>
+      <div class="fasor-box">
+        <h3 style="color:var(--amber)">DIAGRAMA FASORIAL</h3>
+        <canvas id="f3" width="220" height="220"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slider -->
+  <div class="slider-row">
+    <label>◀ FRECUENCIA ▶</label>
+    <input type="range" id="freqSlider" min="0" max="1000" value="450">
+    <div class="slider-val" id="sliderVal">— Hz</div>
+    <span style="font-size:0.6rem;color:var(--dim);margin-left:10px">
+      fo = <span id="fo_display" style="color:var(--amber)">—</span>
+    </span>
+  </div>
+
+  <!-- Bode -->
+  <div class="bode-row">
+    <div class="bode-box">
+      <div class="scope-topbar">
+        <span style="color:var(--purple)">BODE — AMPLITUD [dB]</span>
+        <span style="color:var(--dim);font-size:0.6rem">● punto actual</span>
+      </div>
+      <canvas id="bode_amp" height="180"></canvas>
+    </div>
+    <div class="bode-box">
+      <div class="scope-topbar">
+        <span style="color:var(--teal)">BODE — FASE [°]</span>
+        <span style="color:var(--dim);font-size:0.6rem">● punto actual</span>
+      </div>
+      <canvas id="bode_phase" height="180"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  UTILIDADES
+// ═══════════════════════════════════════════════════════
+function complexMul(a, b) {
+  return { re: a.re*b.re - a.im*b.im, im: a.re*b.im + a.im*b.re };
+}
+function complexDiv(a, b) {
+  const d = b.re*b.re + b.im*b.im;
+  return { re:(a.re*b.re+a.im*b.im)/d, im:(a.im*b.re-a.re*b.im)/d };
+}
+function complexAbs(a) { return Math.sqrt(a.re*a.re+a.im*a.im); }
+function complexArg(a) { return Math.atan2(a.im, a.re); }
+
+// ── Canvas resize helper ──
+function resizeCanvas(canvas) {
+  canvas.width = canvas.offsetWidth;
+}
+
+// ── Dibuja la grilla estilo osciloscopio ──
+function drawGrid(ctx, w, h, color='#1a2e1a') {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 0.5;
+  const cols = 10, rows = 8;
+  for (let i=0; i<=cols; i++) {
+    ctx.beginPath();
+    ctx.moveTo(i*w/cols, 0);
+    ctx.lineTo(i*w/cols, h);
+    ctx.stroke();
+  }
+  for (let i=0; i<=rows; i++) {
+    ctx.beginPath();
+    ctx.moveTo(0, i*h/rows);
+    ctx.lineTo(w, i*h/rows);
+    ctx.stroke();
+  }
+  // eje central más brillante
+  ctx.strokeStyle = '#1e3e1e';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(0,h/2); ctx.lineTo(w,h/2); ctx.stroke();
+}
+
+// ── Dibuja señal sinusoidal en canvas ──
+function drawSignal(ctx, w, h, phaseOffset, freq, amp, phase, color, Vm=5) {
+  const scaleY = (h/2 - 14) / Vm;
+  const omega  = 2 * Math.PI * freq;
+  const T      = 1 / freq;
+  const cycles = 3;
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth   = 2;
+  ctx.shadowColor = color;
+  ctx.shadowBlur  = 4;
+  ctx.beginPath();
+  for (let px=0; px<w; px++) {
+    const t  = (px/w) * cycles * T;
+    const y  = amp * Math.sin(omega * t - phaseOffset + phase);
+    const py = h/2 - y * scaleY;
+    px===0 ? ctx.moveTo(px,py) : ctx.lineTo(px,py);
+  }
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+}
+
+// ── Dibuja fasor ──
+function drawFasor(ctx, cx, cy, r, angle, amp, maxAmp, color, label) {
+  const a   = angle;
+  const len = (amp/maxAmp) * r;
+  const ex  = cx + len * Math.cos(a);
+  const ey  = cy - len * Math.sin(a);
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth   = 2.5;
+  ctx.shadowColor = color;
+  ctx.shadowBlur  = 6;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(ex, ey);
+  ctx.stroke();
+
+  // flecha
+  const ah = 10, aw = 5;
+  const dx = ex-cx, dy = ey-cy;
+  const len2 = Math.sqrt(dx*dx+dy*dy);
+  if(len2 < 2) return;
+  const ux = dx/len2, uy = dy/len2;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(ex, ey);
+  ctx.lineTo(ex - ah*ux + aw*uy, ey - ah*uy - aw*ux);
+  ctx.lineTo(ex - ah*ux - aw*uy, ey - ah*uy + aw*ux);
+  ctx.closePath();
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // label
+  ctx.fillStyle = color;
+  ctx.font = '10px Share Tech Mono';
+  ctx.fillText(label, ex+6, ey-4);
+}
+
+// ═══════════════════════════════════════════════════════
+//  EXP 1 — RL PASA-BAJAS
+// ═══════════════════════════════════════════════════════
+(function() {
+  const R=470, rg=50, rL=50, L=50e-3, Vm=5, f=1000;
+  const omega = 2*Math.PI*f;
+  const Rtot  = R+rg+rL;
+
+  // H(jω) = R / (Rtot + jωL)
+  const Hre = R*Rtot / (Rtot*Rtot + omega*omega*L*L);
+  const Him = -R*omega*L / (Rtot*Rtot + omega*omega*L*L);
+  const mag = Math.sqrt(Hre*Hre + Him*Him);
+  const phi = Math.atan2(Him, Hre);
+  const Vo  = Vm * mag;
+  const phiTeo = -Math.atan(omega*L/(rL+R)) * 180/Math.PI;
+
+  // poblar info
+  document.getElementById('e1_mag').textContent  = mag.toFixed(4);
+  document.getElementById('e1_vo').textContent   = Vo.toFixed(4)+' V';
+  document.getElementById('e1_phi2').textContent = phi.toFixed(3)*180/Math.PI < 0
+    ? (phi*180/Math.PI).toFixed(2)+'°' : '+'+(phi*180/Math.PI).toFixed(2)+'°';
+  document.getElementById('e1_phit').textContent = phiTeo.toFixed(3)+'°';
+  document.getElementById('e1_phi').textContent  = 'φ = '+(phi*180/Math.PI).toFixed(2)+'°';
+  document.getElementById('e1_time').textContent = 'TIME/DIV: '+(1/f*1e3/10).toFixed(2)+'ms';
+
+  const c = document.getElementById('c1');
+  const fc= document.getElementById('f1');
+  const ctx= c.getContext('2d');
+  const fctx= fc.getContext('2d');
+  let phase = 0;
+
+  function frame() {
+    resizeCanvas(c);
+    const w=c.width, h=c.height;
+    ctx.fillStyle='#020602'; ctx.fillRect(0,0,w,h);
+    drawGrid(ctx,w,h);
+    drawSignal(ctx, w, h, phase, f, Vm, 0,   '#00ff41', Vm);
+    drawSignal(ctx, w, h, phase, f, Vo, phi,  '#ffdd00', Vm);
+
+    // punto en tiempo real (extremo derecho)
+    const tEnd = 3/f, yEnd_vi = Vm*Math.sin(omega*tEnd - phase);
+    const yEnd_vo= Vo*Math.sin(omega*tEnd - phase + phi);
+    const scY = (h/2-14)/Vm;
+    ctx.fillStyle='#00ff41'; ctx.beginPath();
+    ctx.arc(w-4, h/2-yEnd_vi*scY, 4, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle='#ffdd00'; ctx.beginPath();
+    ctx.arc(w-4, h/2-yEnd_vo*scY, 4, 0, Math.PI*2); ctx.fill();
+
+    phase += 0.055;
+
+    // fasor
+    const fw=fc.width, fh=fc.height;
+    fctx.fillStyle='#030903'; fctx.fillRect(0,0,fw,fh);
+    // grilla circular
+    fctx.strokeStyle='#1a2e1a'; fctx.lineWidth=0.5;
+    for(let r=20;r<=80;r+=20){
+      fctx.beginPath(); fctx.arc(fw/2,fh/2,r,0,Math.PI*2); fctx.stroke();
+    }
+    fctx.beginPath(); fctx.moveTo(fw/2-90,fh/2); fctx.lineTo(fw/2+90,fh/2); fctx.stroke();
+    fctx.beginPath(); fctx.moveTo(fw/2,fh/2-90); fctx.lineTo(fw/2,fh/2+90); fctx.stroke();
+    drawFasor(fctx, fw/2, fh/2, 80, -phase%(2*Math.PI),        Vm, Vm, '#00ff41', 'Vi');
+    drawFasor(fctx, fw/2, fh/2, 80, (-phase+phi)%(2*Math.PI),  Vo, Vm, '#ffdd00', 'Vo');
+
+    requestAnimationFrame(frame);
+  }
+  frame();
+})();
+
+// ═══════════════════════════════════════════════════════
+//  EXP 2 — RC PASA-ALTAS
+// ═══════════════════════════════════════════════════════
+(function() {
+  const R=470, rg=50, C=0.1e-6, Vm=5, f=1000;
+  const omega = 2*Math.PI*f;
+  const Rtot  = R+rg;
+  // H(jω) = jωRC / (1 + jωRtotC)
+  const dRe = 1, dIm = omega*Rtot*C;
+  const nRe = 0, nIm = omega*R*C;
+  const d2  = dRe*dRe+dIm*dIm;
+  const Hre = (nRe*dRe+nIm*dIm)/d2;
+  const Him = (nIm*dRe-nRe*dIm)/d2;
+  const mag = Math.sqrt(Hre*Hre+Him*Him);
+  const phi = Math.atan2(Him, Hre);
+  const Vo  = Vm*mag;
+  const Xc  = 1/(omega*C);
+  const phiTeo = 90 - Math.atan(omega*R*C)*180/Math.PI;
+
+  document.getElementById('e2_mag').textContent  = mag.toFixed(4);
+  document.getElementById('e2_vo').textContent   = Vo.toFixed(4)+' V';
+  document.getElementById('e2_phi2').textContent = '+'+(phi*180/Math.PI).toFixed(2)+'°';
+  document.getElementById('e2_phit').textContent = '+'+phiTeo.toFixed(3)+'°';
+  document.getElementById('e2_phi').textContent  = 'φ = +'+(phi*180/Math.PI).toFixed(2)+'°';
+  document.getElementById('e2_xc').textContent   = Xc.toFixed(1)+' Ω';
+  document.getElementById('e2_time').textContent = 'TIME/DIV: '+(1/f*1e3/10).toFixed(2)+'ms';
+
+  const c=document.getElementById('c2'), fc=document.getElementById('f2');
+  const ctx=c.getContext('2d'), fctx=fc.getContext('2d');
+  let phase=0;
+
+  function frame() {
+    resizeCanvas(c);
+    const w=c.width, h=c.height;
+    ctx.fillStyle='#020602'; ctx.fillRect(0,0,w,h);
+    drawGrid(ctx,w,h,'#12183a');
+    drawSignal(ctx,w,h,phase,f,Vm,0,   '#00e5ff',Vm);
+    drawSignal(ctx,w,h,phase,f,Vo,phi, '#ff4081',Vm);
+
+    const tEnd=3/f, scY=(h/2-14)/Vm;
+    ctx.fillStyle='#00e5ff'; ctx.beginPath();
+    ctx.arc(w-4, h/2-Vm*Math.sin(2*Math.PI*f*tEnd-phase)*scY, 4,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#ff4081'; ctx.beginPath();
+    ctx.arc(w-4, h/2-Vo*Math.sin(2*Math.PI*f*tEnd-phase+phi)*scY,4,0,Math.PI*2); ctx.fill();
+
+    // flecha adelanto
+    const phaseShift = phi/(2*Math.PI*f);
+    const xVi = ((3/f + 0.25/f)/3/f) * w;   // cruce ascendente vi en pantalla
+    const xVo = xVi - (phi/(2*Math.PI*f))/(3/f)*w;
+    if(xVo>10 && xVo<w-10 && xVi>10 && xVi<w-10) {
+      ctx.strokeStyle='#ffab40'; ctx.lineWidth=1.2;
+      ctx.setLineDash([3,3]);
+      ctx.beginPath(); ctx.moveTo(xVo,h/2-8); ctx.lineTo(xVo,h/2+8); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(xVi,h/2-8); ctx.lineTo(xVi,h/2+8); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(xVo,h/2); ctx.lineTo(xVi,h/2); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle='#ffab40'; ctx.font='9px Share Tech Mono';
+      ctx.fillText('Δt='+(phaseShift*1e6).toFixed(1)+'µs', (xVo+xVi)/2-18, h/2-12);
+    }
+
+    phase += 0.055;
+
+    // fasor
+    const fw=fc.width, fh=fc.height;
+    fctx.fillStyle='#03050f'; fctx.fillRect(0,0,fw,fh);
+    fctx.strokeStyle='#12183a'; fctx.lineWidth=0.5;
+    for(let r=20;r<=80;r+=20){ fctx.beginPath(); fctx.arc(fw/2,fh/2,r,0,Math.PI*2); fctx.stroke(); }
+    fctx.beginPath(); fctx.moveTo(fw/2-90,fh/2); fctx.lineTo(fw/2+90,fh/2); fctx.stroke();
+    fctx.beginPath(); fctx.moveTo(fw/2,fh/2-90); fctx.lineTo(fw/2,fh/2+90); fctx.stroke();
+    drawFasor(fctx,fw/2,fh/2,80,-phase%(2*Math.PI),        Vm,Vm,'#00e5ff','Vi');
+    drawFasor(fctx,fw/2,fh/2,80,(-phase+phi)%(2*Math.PI),  Vo,Vm,'#ff4081','Vo');
+    requestAnimationFrame(frame);
+  }
+  frame();
+})();
+
+// ═══════════════════════════════════════════════════════
+//  EXP 3 — RLC PASA-BANDA
+// ═══════════════════════════════════════════════════════
+(function() {
+  const R=1000, rg=50, rL=50, L=60e-3, C=10e-9, Vm=5;
+  const Rtot = R+rg+rL;
+  const fo   = 1/(2*Math.PI*Math.sqrt(L*C));
+  const fp   = 0.9*fo;
+  const Q    = (1/Rtot)*Math.sqrt(L/C);
+
+  document.getElementById('e3_fo').textContent = fo.toFixed(1)+' Hz';
+  document.getElementById('e3_Q').textContent  = Q.toFixed(3);
+  document.getElementById('fo_display').textContent = fo.toFixed(0)+' Hz';
+
+  // H(jω) para RLC — complejo
+  function Hjw(w) {
+    // num = jω·R/L ,  den = (jω)²+(Rtot/L)jω+1/(LC)
+    const numRe = 0, numIm = w*R/L;
+    const denRe = -w*w + 1/(L*C);
+    const denIm = w*Rtot/L;
+    const d2 = denRe*denRe+denIm*denIm;
+    return {
+      re:(numRe*denRe+numIm*denIm)/d2,
+      im:(numIm*denRe-numRe*denIm)/d2
+    };
+  }
+
+  // ── Construir curvas de Bode ──────────────────────────
+  const N_bode = 400;
+  const f_min  = 100, f_max = 1e6;
+  const bodeF=[], bodeDB=[], bodePhi=[];
+  for(let i=0;i<N_bode;i++){
+    const fi = f_min * Math.pow(f_max/f_min, i/(N_bode-1));
+    const H  = Hjw(2*Math.PI*fi);
+    const m  = Math.sqrt(H.re*H.re+H.im*H.im);
+    bodeF.push(fi);
+    bodeDB.push(20*Math.log10(m+1e-12));
+    bodePhi.push(Math.atan2(H.im,H.re)*180/Math.PI);
+  }
+
+  // ── Dibujar Bode ──────────────────────────────────────
+  function drawBode(canvasId, data, yMin, yMax, color, gridColor, yLabel, currentF, currentVal) {
+    const canvas = document.getElementById(canvasId);
+    resizeCanvas(canvas);
+    const w=canvas.width, h=canvas.height;
+    const ctx=canvas.getContext('2d');
+    ctx.fillStyle='#020602'; ctx.fillRect(0,0,w,h);
+
+    // grilla log
+    ctx.strokeStyle=gridColor; ctx.lineWidth=0.4;
+    [100,1000,10000,100000,1000000].forEach(fv => {
+      const px = Math.log10(fv/f_min)/Math.log10(f_max/f_min)*w;
+      ctx.beginPath(); ctx.moveTo(px,0); ctx.lineTo(px,h); ctx.stroke();
+      ctx.fillStyle='#3a5a3a'; ctx.font='8px Share Tech Mono';
+      ctx.fillText(fv>=1000?fv/1000+'k':fv, px-8, h-3);
+    });
+    for(let y=yMin;y<=yMax;y+=yMax>50?30:30){
+      const py = h - (y-yMin)/(yMax-yMin)*h;
+      ctx.beginPath(); ctx.moveTo(0,py); ctx.lineTo(w,py); ctx.stroke();
+      ctx.fillStyle='#3a5a3a'; ctx.font='8px Share Tech Mono';
+      ctx.fillText(y, 2, py-2);
+    }
+
+    // fo vertical
+    const xfo = Math.log10(fo/f_min)/Math.log10(f_max/f_min)*w;
+    ctx.strokeStyle='#ffab4055'; ctx.lineWidth=1.2; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(xfo,0); ctx.lineTo(xfo,h); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // curva
+    ctx.strokeStyle=color; ctx.lineWidth=1.8;
+    ctx.shadowColor=color; ctx.shadowBlur=3;
+    ctx.beginPath();
+    for(let i=0;i<N_bode;i++){
+      const px=Math.log10(bodeF[i]/f_min)/Math.log10(f_max/f_min)*w;
+      const py=h-(data[i]-yMin)/(yMax-yMin)*h;
+      i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+    }
+    ctx.stroke();
+    ctx.shadowBlur=0;
+
+    // punto actual
+    if(currentF && currentVal!==undefined){
+      const px=Math.log10(currentF/f_min)/Math.log10(f_max/f_min)*w;
+      const py=h-(currentVal-yMin)/(yMax-yMin)*h;
+      ctx.fillStyle='#ff4081';
+      ctx.shadowColor='#ff4081'; ctx.shadowBlur=8;
+      ctx.beginPath(); ctx.arc(px,py,5,0,Math.PI*2); ctx.fill();
+      ctx.shadowBlur=0;
+    }
+  }
+
+  // ── Estado del slider ─────────────────────────────────
+  const slider = document.getElementById('freqSlider');
+  let currentF = fp;
+
+  function sliderToF(val) {
+    // mapeo lineal 0-1000 → fo*0.2 … fo*3
+    const fmin = fo*0.2, fmax = fo*3;
+    return fmin * Math.pow(fmax/fmin, val/1000);
+  }
+
+  // init slider position
+  slider.value = Math.round(Math.log(fp/fo/0.2)/Math.log(3/0.2)*1000);
+
+  slider.addEventListener('input', ()=>{
+    currentF = sliderToF(slider.value);
+  });
+
+  // ── Animación principal EXP3 ──────────────────────────
+  const c=document.getElementById('c3'), fc=document.getElementById('f3');
+  const ctx=c.getContext('2d'), fctx=fc.getContext('2d');
+  let phase=0;
+
+  function frame() {
+    const f   = currentF;
+    const w_  = 2*Math.PI*f;
+    const H   = Hjw(w_);
+    const mag = Math.sqrt(H.re*H.re+H.im*H.im);
+    const phi = Math.atan2(H.im,H.re);
+    const Vo  = Vm*mag;
+    const phiD= phi*180/Math.PI;
+    const ratio=f/fo;
+
+    // color dinámico
+    let col, estado;
+    if      (ratio < 0.97) { col='#ffab40'; estado='f < fo  ADELANTO'; }
+    else if (ratio > 1.03) { col='#ff4081'; estado='f > fo  ATRASO';   }
+    else                   { col='#00ff41'; estado='≈ RESONANCIA';      }
+
+    // actualizar UI
+    document.getElementById('sliderVal').textContent  = f.toFixed(0)+' Hz';
+    document.getElementById('e3_fdisp').textContent   = 'f: '+f.toFixed(0)+' Hz';
+    document.getElementById('e3_ratio').textContent   = 'f/fo: '+ratio.toFixed(3);
+    document.getElementById('e3_phi').style.color     = col;
+    document.getElementById('e3_phi').textContent     = 'φ: '+phiD.toFixed(1)+'°';
+    document.getElementById('e3_fv').textContent      = f.toFixed(0)+' Hz';
+    document.getElementById('e3_mag').textContent     = mag.toFixed(4);
+    document.getElementById('e3_vo').textContent      = Vo.toFixed(4)+' V';
+    document.getElementById('e3_phi2').textContent    = phiD.toFixed(2)+'°';
+    document.getElementById('e3_estado_h').textContent='ESTADO: '+estado;
+    document.getElementById('e3_estado_h').style.color=col;
+    document.getElementById('e3_leg').style.background=col;
+    document.querySelectorAll('#e3_mag,#e3_vo,#e3_phi2,#e3_fv')
+      .forEach(el=>el.style.color=col);
+
+    // osciloscopio
+    resizeCanvas(c);
+    const w=c.width, h=c.height;
+    ctx.fillStyle='#020602'; ctx.fillRect(0,0,w,h);
+    drawGrid(ctx,w,h);
+    drawSignal(ctx,w,h,phase,f,Vm,0,  '#00e5ff',Vm);
+    drawSignal(ctx,w,h,phase,f,Vo,phi,col,       Vm);
+
+    const scY=(h/2-14)/Vm, tEnd=3/f;
+    ctx.fillStyle='#00e5ff'; ctx.beginPath();
+    ctx.arc(w-4,h/2-Vm*Math.sin(w_*tEnd-phase)*scY,4,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle=col; ctx.beginPath();
+    ctx.arc(w-4,h/2-Vo*Math.sin(w_*tEnd-phase+phi)*scY,4,0,Math.PI*2); ctx.fill();
+
+    phase += 0.055;
+
+    // Bode
+    const HdB = 20*Math.log10(mag+1e-12);
+    drawBode('bode_amp',   bodeDB,  -70, 5,   '#b39ddb','#1a2a1a','dB', f, HdB);
+    drawBode('bode_phase', bodePhi, -100,100, '#80cbc4','#1a2a1a','°',  f, phiD);
+
+    // fasor
+    const fw=fc.width, fh=fc.height;
+    fctx.fillStyle='#030903'; fctx.fillRect(0,0,fw,fh);
+    fctx.strokeStyle='#1a2a1a'; fctx.lineWidth=0.5;
+    for(let r=20;r<=80;r+=20){ fctx.beginPath(); fctx.arc(fw/2,fh/2,r,0,Math.PI*2); fctx.stroke(); }
+    fctx.beginPath(); fctx.moveTo(fw/2-90,fh/2); fctx.lineTo(fw/2+90,fh/2); fctx.stroke();
+    fctx.beginPath(); fctx.moveTo(fw/2,fh/2-90); fctx.lineTo(fw/2,fh/2+90); fctx.stroke();
+    drawFasor(fctx,fw/2,fh/2,80,-phase%(2*Math.PI),       Vm,Vm,'#00e5ff','Vi');
+    drawFasor(fctx,fw/2,fh/2,80,(-phase+phi)%(2*Math.PI),Vo,Vm,col,       'Vo');
+
+    requestAnimationFrame(frame);
+  }
+  frame();
+})();
+
+// ═══════════════════════════════════════════════════════
+//  TABS
+// ═══════════════════════════════════════════════════════
+function switchTab(id, btn) {
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+}
+</script>
+</body>
+</html>
